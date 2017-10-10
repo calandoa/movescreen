@@ -3,7 +3,7 @@ This Python script moves the window with focus on an adjacent monitor. It is int
 
 ## Usage
 
-`movescreen <up|down|left|right>`
+`movescreen.py <up|down|left|right>`
 
 It should be compatible with Python 2.7 and 3.
 
