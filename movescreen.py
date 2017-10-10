@@ -11,13 +11,13 @@ import sys
 
 arg_str = [ "up", "down", "left", "right" ]
 if len(sys.argv) < 2 or sys.argv[1] not in arg_str:
-	print("usage: %s <left|right|up|down> " % sys.argv[0])
+	print("usage: %s <left|right|up|down> [win_id]" % sys.argv[0])
 	exit(-1)
 arg = sys.argv[1]
 
 # Get screens information
 # scr will store a list of list: [ [ width height offset_x offset_y ] ... ]
-out = subprocess.check_output(['xrandr']).decode('ascii')
+out = subprocess.check_output(['xrandr']).decode('ascii', 'ignore')
 reg = re.compile(" connected( primary)? ([0-9]+)x([0-9]+)\+([0-9]+)\+([0-9]+)")
 scr = []
 for l in out.splitlines():
@@ -25,12 +25,16 @@ for l in out.splitlines():
 	if m:
 		scr += [ list(map(int, m.groups()[1:])) ]
 
-# Get focused window
-out = subprocess.check_output(['xprop', '-root', '_NET_ACTIVE_WINDOW']).decode('ascii')
-id = re.search("window id # (0x[0-9a-f]+),", out).group(1)
+if 2 < len(sys.argv):
+	# Get window id from argument
+	id = sys.argv[2]
+else:
+	# Get focused window
+	out = subprocess.check_output(['xprop', '-root', '_NET_ACTIVE_WINDOW']).decode('ascii', 'ignore')
+	id = re.search("window id # (0x[0-9a-f]+),", out).group(1)
 
 # Get info on focused window,
-out = subprocess.check_output(['xwininfo', '-id', id, '-all']).decode('ascii')
+out = subprocess.check_output(['xwininfo', '-id', id, '-all']).decode('ascii', 'ignore')
 geo_str = ( "Width:", "Height:",
 	"Absolute upper-left X:", "Absolute upper-left Y:",
 	"Relative upper-left X:", "Relative upper-left Y:", "")
