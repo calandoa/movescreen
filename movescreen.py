@@ -9,10 +9,10 @@ import subprocess
 import re
 import sys
 
-arg_str = [ "up", "down", "left", "right" ]
+arg_str = [ "left", "right", "up", "down", "next", "prev" ]
 if len(sys.argv) < 2 or sys.argv[1] not in arg_str:
-	print("usage: %s <left|right|up|down> [win_id]" % sys.argv[0])
-	exit(-1)
+	print("usage: %s <%s> [win_id]" % (sys.argv[0], '|'.join(arg_str)))
+	exit(1)
 arg = sys.argv[1]
 
 # Get screens information
@@ -52,7 +52,7 @@ for l in out.splitlines():
 		state += [l.lower().replace(' ', '_')]
 	elif l == "Desktop":
 		# Top level window
-		sys.exit(-2)
+		sys.exit(2)
 
 def isect_area(a, b):
 	# Compute top left and bottom right coords in scr format: [w h x y]
@@ -76,27 +76,29 @@ for ia, sa in enumerate(scr):
 				r["left"][ib] = ia
 
 			if isect_area([sa[0], sa[1], sa[2], sa[3] + sa[1]], sb):
-				r["bottom"][ia] = ib
-				r["top"][ib] = ia
+				r["down"][ia] = ib
+				r["up"][ib] = ia
+
+	r["next"][ia] = (ia + 1) % len(scr)
+	r["prev"][ia] = (ia - 1) % len(scr)
 
 # Find screen of active window from the max area
 areas = list(map(lambda s : isect_area(geo, s), scr))
 try:
 	sidx = areas.index(max(areas + [1]))
 except ValueError:
-	exit(-3)
+	exit(3)
 
 # other screen in this direction?
 nscr = r[arg][sidx]
 if nscr is None:
-	exit(-4)
+	exit(4)
 
-# x/y offset from "tOp" or "bOttom" check
-x_y = int(arg[1] == 'o')
-
-# Get the new coordinates
+# From the current coordinates...
 npos = [geo[2] - geo[4], geo[3] - geo[5]]
-npos[x_y] += scr[nscr][2 + x_y] - scr[sidx][2 + x_y]
+# ... get the new ones by applying offset on x (left/right), y (up/down), or both (next/prev)
+for xy in [[0], [1], [0,1]][arg_str.index(arg)/2]:
+	npos[xy] += scr[nscr][2 + xy] - scr[sidx][2 + xy]
 
 # Execute move command, preserving the states
 def wmctrl(id, ops):
