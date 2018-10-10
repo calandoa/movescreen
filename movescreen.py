@@ -9,21 +9,13 @@ import subprocess
 import re
 import sys
 
-arg_str = [ "left", "right", "up", "down", "next", "prev" ]
-if len(sys.argv) < 2 or sys.argv[1] not in arg_str:
-	print("usage: %s <%s> [win_id]" % (sys.argv[0], '|'.join(arg_str)))
+# Parse arguments
+# ==============
+dir_str = [ "left", "right", "up", "down", "next", "prev" ]
+if len(sys.argv) < 2 or sys.argv[1] not in dir_str:
+	print("usage: %s <%s> [win_id|mouse]" % (sys.argv[0], '|'.join(dir_str)))
 	exit(1)
-arg = sys.argv[1]
-
-# Get screens information
-# scr will store a list of list: [ [ width height offset_x offset_y ] ... ]
-out = subprocess.check_output(['xrandr']).decode('ascii', 'ignore')
-reg = re.compile(" connected( primary)? ([0-9]+)x([0-9]+)\+([0-9]+)\+([0-9]+)")
-scr = []
-for l in out.splitlines():
-	m = reg.search(l)
-	if m:
-		scr += [ list(map(int, m.groups()[1:])) ]
+dir = sys.argv[1]
 
 if 2 < len(sys.argv):
 	# Get window id from argument
@@ -33,26 +25,17 @@ else:
 	out = subprocess.check_output(['xprop', '-root', '_NET_ACTIVE_WINDOW']).decode('ascii', 'ignore')
 	id = re.search("window id # (0x[0-9a-f]+),", out).group(1)
 
-# Get info on focused window,
-out = subprocess.check_output(['xwininfo', '-id', id, '-all']).decode('ascii', 'ignore')
-geo_str = ( "Width:", "Height:",
-	"Absolute upper-left X:", "Absolute upper-left Y:",
-	"Relative upper-left X:", "Relative upper-left Y:", "")
-state_str = ("Maximized Vert", "Maximized Horz", "Fullscreen", )
-geo = {}
-state = []
 
-# Replace each geo elem with matching int, add states/types in state, converted for wmctrl
+# Get screens information
+# =======================
+# scr will store a list of list: [ [ width height offset_x offset_y ] ... ]
+out = subprocess.check_output(['xrandr']).decode('ascii', 'ignore')
+reg = re.compile(" connected( primary)? ([0-9]+)x([0-9]+)\+([0-9]+)\+([0-9]+)")
+scr = []
 for l in out.splitlines():
-	l = l.strip()
-	idx = next(i for i, s in enumerate(geo_str) if l.startswith(s))
-	if geo_str[idx] != "":
-		geo[idx] = int(l.split()[-1])
-	elif l in state_str:
-		state += [l.lower().replace(' ', '_')]
-	elif l == "Desktop":
-		# Top level window
-		sys.exit(2)
+	m = reg.search(l)
+	if m:
+		scr += [ list(map(int, m.groups()[1:])) ]
 
 def isect_area(a, b):
 	# Compute top left and bottom right coords in scr format: [w h x y]
@@ -64,7 +47,7 @@ def isect_area(a, b):
 
 # r will hold a dict of how screens are disposed between themselves, using their idx
 # e.g. if scr 0 is at left of 1, then d[left][1] == 0 and d[right][0] == 1
-r = { a : [ None ] * len(scr) for a in arg_str  }
+r = { a : [ None ] * len(scr) for a in dir_str  }
 
 for ia, sa in enumerate(scr):
 	for ib, sb in enumerate(scr):
@@ -82,6 +65,39 @@ for ia, sa in enumerate(scr):
 	r["next"][ia] = (ia + 1) % len(scr)
 	r["prev"][ia] = (ia - 1) % len(scr)
 
+
+# Get mouse/window info
+# =====================
+if id == 'mouse':
+	out = subprocess.check_output(['xdotool', 'getmouselocation']).decode('ascii', 'ignore')
+	d = dict([ w.split(':') for w in out.split()])
+	geo = [ 1, 1, int(d['x']), int(d['y']), 0, 0 ]
+else:
+	# Get info on focused window,
+	out = subprocess.check_output(['xwininfo', '-id', id, '-all']).decode('ascii', 'ignore')
+	geo_str = ( "Width:", "Height:",
+		"Absolute upper-left X:", "Absolute upper-left Y:",
+		"Relative upper-left X:", "Relative upper-left Y:", "")
+	state_str = ("Maximized Vert", "Maximized Horz", "Fullscreen", )
+	geo = [None] * 6
+	state = []
+
+	# Replace each geo elem with matching int, add states/types in state, converted for wmctrl
+	for l in out.splitlines():
+		l = l.strip()
+		idx = next(i for i, s in enumerate(geo_str) if l.startswith(s))
+		if geo_str[idx] != "":
+			geo[idx] = int(l.split()[-1])
+		elif l in state_str:
+			state += [l.lower().replace(' ', '_')]
+		elif l == "Desktop":
+			# Top level window
+			sys.exit(2)
+
+
+# Pocess mouse/window info
+# ========================
+
 # Find screen of active window from the max area
 areas = list(map(lambda s : isect_area(geo, s), scr))
 try:
@@ -90,24 +106,30 @@ except ValueError:
 	exit(3)
 
 # other screen in this direction?
-nscr = r[arg][sidx]
+nscr = r[dir][sidx]
 if nscr is None:
 	exit(4)
 
 # From the current coordinates...
 npos = [geo[2] - geo[4], geo[3] - geo[5]]
 # ... get the new ones by applying offset on x (left/right), y (up/down), or both (next/prev)
-for xy in [[0], [1], [0,1]][arg_str.index(arg)/2]:
+for xy in [[0], [1], [0,1]][dir_str.index(dir)/2]:
 	npos[xy] += scr[nscr][2 + xy] - scr[sidx][2 + xy]
 
-# Execute move command, preserving the states
-def wmctrl(id, ops):
-	for op in ops:
-		cmd = ['wmctrl', '-i', '-r', id ] + op
-		subprocess.call(cmd)
 
-# wmctrl very pernickety with -b argument, 'add' not really working and 2 props max
-wmctrl(id, [['-b', 'toggle,' + s] for s in state])
-wmctrl(id, [['-e', '0,%d,%d,-1,-1' % tuple(npos)]])
-wmctrl(id, [['-b', 'toggle,' + s] for s in state])
+# Set mouse/window info
+# =========================
+if id == 'mouse':
+	subprocess.call(['xdotool', 'mousemove'] + [str(n) for n in npos])
+else:
+	# Execute move command, preserving the states
+	def wmctrl(id, ops):
+		for op in ops:
+			cmd = ['wmctrl', '-i', '-r', id ] + op
+			subprocess.call(cmd)
+
+	# wmctrl very pernickety with -b argument, 'add' not really working and 2 props max
+	wmctrl(id, [['-b', 'toggle,' + s] for s in state])
+	wmctrl(id, [['-e', '0,%d,%d,-1,-1' % tuple(npos)]])
+	wmctrl(id, [['-b', 'toggle,' + s] for s in state])
 
