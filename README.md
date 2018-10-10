@@ -3,7 +3,7 @@ This Python script moves the window with focus on an adjacent monitor. It is int
 
 ## Usage
 
-`movescreen.py <up|down|left|right>`
+`movescreen.py <up|down|left|right|prev|next>`
 
 It should be compatible with Python 2.7 and 3.
 
@@ -31,7 +31,10 @@ The script scans for the list of monitors and check their relative positions.
 
 It gather information about the current active window (size, position and flags). It also find on which monitor the window has the biggest area.
 
-Depending on the argument, it moves the window on the selected adjacent monitor (if any) and restore the previously set flags.
+Depending on the argument, it moves the window on the selected adjacent monitor (if any) and restore the previously set flags. 
+
+Arguments `next` and `prev` will cycle through the list of screens in `xrandr` order.
+
 
 ## Drawback
 A little bit slow the first time it is run.
