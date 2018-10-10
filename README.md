@@ -3,9 +3,9 @@ This Python script moves the window with focus on an adjacent monitor. It is int
 
 ## Usage
 
-`movescreen.py <up|down|left|right|prev|next> [win_id|mouse]`
+`movescreen.py <up|down|left|right|prev|next|fit> [win_id|mouse]`
 
-First argument is the direction of the monitor in which the active window will be moved. `next` and `prev` will cycle through the list of screens in `xrandr` order.
+First argument is the direction of the monitor in which the active window will be moved. `next` and `prev` will cycle through the list of monitors in `xrandr` order. 'fit' will reduce or move the window in the center of its monitor so it gets fully visible.
 
 Instead of the active window, id of another window or `mouse` can be specified.
 
@@ -21,7 +21,8 @@ Go to *Setting* -> *Keyboard* -> *Application shortcuts* then add one shortcut f
 | Command | Shortcut |
 | :------ | :------- |
 | /usr/local/bin/movescreen.py left  | Ctrl+Super+Left  |
-| /usr/local/bin/movescreen.py right | Ctrl+Super+Right  |
+| /usr/local/bin/movescreen.py right | Ctrl+Super+Right |
+| /usr/local/bin/movescreen.py fit   | Ctrl+Super+Space |
 
 
 ## Depends on

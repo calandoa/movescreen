@@ -11,7 +11,7 @@ import sys
 
 # Parse arguments
 # ==============
-dir_str = [ "left", "right", "up", "down", "next", "prev" ]
+dir_str = [ "left", "right", "up", "down", "next", "prev", "fit" ]
 if len(sys.argv) < 2 or sys.argv[1] not in dir_str:
 	print("usage: %s <%s> [win_id|mouse]" % (sys.argv[0], '|'.join(dir_str)))
 	exit(1)
@@ -64,6 +64,7 @@ for ia, sa in enumerate(scr):
 
 	r["next"][ia] = (ia + 1) % len(scr)
 	r["prev"][ia] = (ia - 1) % len(scr)
+	r["fit"][ia] = ia
 
 
 # Get mouse/window info
@@ -112,10 +113,17 @@ if nscr is None:
 
 # From the current coordinates...
 npos = [geo[2] - geo[4], geo[3] - geo[5]]
-# ... get the new ones by applying offset on x (left/right), y (up/down), or both (next/prev)
-for xy in [[0], [1], [0,1]][dir_str.index(dir)/2]:
-	npos[xy] += scr[nscr][2 + xy] - scr[sidx][2 + xy]
+nsiz = geo[0:2]
 
+if dir == 'fit':
+	# ... reduce/move window so it fits totally in the screen (taking border into account)
+	nsiz = [ min(nsiz[0], scr[nscr][0] - 2*geo[4]), min(nsiz[1], scr[nscr][1] - geo[4] - geo[5]) ]
+	npos[0] = min(max(npos[0], scr[nscr][2]), scr[nscr][2] + scr[nscr][0] - nsiz[0] - geo[4] - geo[4])
+	npos[1] = min(max(npos[1], scr[nscr][3]), scr[nscr][3] + scr[nscr][1] - nsiz[1] - geo[5] - geo[4])
+else:
+	# ... or get the new ones by applying offset on x (left/right), y (up/down), or both (next/prev)
+	for xy in [[0], [1], [0,1]][dir_str.index(dir)/2]:
+		npos[xy] += scr[nscr][2 + xy] - scr[sidx][2 + xy]
 
 # Set mouse/window info
 # =========================
@@ -130,6 +138,6 @@ else:
 
 	# wmctrl very pernickety with -b argument, 'add' not really working and 2 props max
 	wmctrl(id, [['-b', 'toggle,' + s] for s in state])
-	wmctrl(id, [['-e', '0,%d,%d,-1,-1' % tuple(npos)]])
+	wmctrl(id, [['-e', '0,%d,%d,%d,%d' % tuple(npos+nsiz)]])
 	wmctrl(id, [['-b', 'toggle,' + s] for s in state])
 
