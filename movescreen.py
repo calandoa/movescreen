@@ -107,8 +107,9 @@ except ValueError:
 	exit(3)
 
 # other screen in this direction?
-nscr = r[dir][sidx]
-if nscr is None:
+try:
+	nscr = scr[r[dir][sidx]]
+except ValueError:
 	exit(4)
 
 # From the current coordinates...
@@ -117,13 +118,13 @@ nsiz = geo[0:2]
 
 if dir == 'fit':
 	# ... reduce/move window so it fits totally in the screen (taking border into account)
-	nsiz = [ min(nsiz[0], scr[nscr][0] - 2*geo[4]), min(nsiz[1], scr[nscr][1] - geo[4] - geo[5]) ]
-	npos[0] = min(max(npos[0], scr[nscr][2]), scr[nscr][2] + scr[nscr][0] - nsiz[0] - geo[4] - geo[4])
-	npos[1] = min(max(npos[1], scr[nscr][3]), scr[nscr][3] + scr[nscr][1] - nsiz[1] - geo[5] - geo[4])
+	nsiz = [ min(nsiz[0], nscr[0] - 2*geo[4]), min(nsiz[1], nscr[1] - geo[4] - geo[5]) ]
+	npos[0] = min(max(npos[0], nscr[2]), nscr[2] + nscr[0] - nsiz[0] - geo[4] - geo[4])
+	npos[1] = min(max(npos[1], nscr[3]), nscr[3] + nscr[1] - nsiz[1] - geo[5] - geo[4])
 else:
 	# ... or get the new ones by applying offset on x (left/right), y (up/down), or both (next/prev)
-	for xy in [[0], [1], [0,1]][dir_str.index(dir)/2]:
-		npos[xy] += scr[nscr][2 + xy] - scr[sidx][2 + xy]
+	for xy in [[0], [1], [0,1]][int(dir_str.index(dir)/2)]:
+		npos[xy] += nscr[2 + xy] - scr[sidx][2 + xy]
 
 # Set mouse/window info
 # =========================
