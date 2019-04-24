@@ -46,7 +46,7 @@ def isect_area(a, b):
 	return max (0, brx - tlx) * max (0, bry - tly)
 
 # r will hold a dict of how screens are disposed between themselves, using their idx
-# e.g. if scr 0 is at left of 1, then d[left][1] == 0 and d[right][0] == 1
+# e.g. if scr 0 is at left of 1, then r[left][1] == 0 and r[right][0] == 1
 r = { a : [ None ] * len(scr) for a in dir_str  }
 
 for ia, sa in enumerate(scr):
@@ -111,6 +111,8 @@ try:
 	nscr = scr[r[dir][sidx]]
 except ValueError:
 	exit(4)
+except TypeError:
+	exit(5)
 
 # From the current coordinates...
 npos = [geo[2] - geo[4], geo[3] - geo[5]]
