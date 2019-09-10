@@ -11,11 +11,19 @@ import sys
 
 # Parse arguments
 # ==============
+ratio = False
+if 1 < len(sys.argv) and sys.argv[1] == '-r':
+	ratio = True
+	del sys.argv[1]
+
 dir_str = [ "left", "right", "up", "down", "next", "prev", "fit" ]
 if len(sys.argv) < 2 or sys.argv[1] not in dir_str:
-	print("usage: %s <%s> [win_id|mouse]" % (sys.argv[0], '|'.join(dir_str)))
+	print("usage: %s [-r] <%s> [win_id|mouse]" % (sys.argv[0], '|'.join(dir_str)))
 	exit(1)
 dir = sys.argv[1]
+
+if ratio and dir == "fit":
+	print("warning: '-r' ignored with 'fit'")
 
 if 2 < len(sys.argv):
 	# Get window id from argument
@@ -124,9 +132,16 @@ if dir == 'fit':
 	npos[0] = min(max(npos[0], nscr[2]), nscr[2] + nscr[0] - nsiz[0] - geo[4] - geo[4])
 	npos[1] = min(max(npos[1], nscr[3]), nscr[3] + nscr[1] - nsiz[1] - geo[5] - geo[4])
 else:
-	# ... or get the new ones by applying offset on x (left/right), y (up/down), or both (next/prev)
-	for xy in [[0], [1], [0,1]][int(dir_str.index(dir)/2)]:
-		npos[xy] += nscr[2 + xy] - scr[sidx][2 + xy]
+	if ratio:
+		# ... or move/scale window by keeping same ratio between each screens
+		for i in (0,1):
+			npos[i] = int(float(npos[i] - scr[sidx][2 + i]) / scr[sidx][i] * nscr[i]) + nscr[2 + i]
+			nsiz[i] = nsiz[i] * nscr[i] / scr[sidx][i]
+	else:
+		# ... or translate window by applying offset on x (left/right), y (up/down), or both (next/prev)
+		for xy in [[0], [1], [0,1]][int(dir_str.index(dir)/2)]:
+			npos[xy] += nscr[2 + xy] - scr[sidx][2 + xy]
+
 
 # Set mouse/window info
 # =========================
