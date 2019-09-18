@@ -133,10 +133,10 @@ if dir == 'fit':
 	npos[1] = min(max(npos[1], nscr[3]), nscr[3] + nscr[1] - nsiz[1] - geo[5] - geo[4])
 else:
 	if ratio:
-		# ... or move/scale window by keeping same ratio between each screens
+		# ... or move/scale window by keeping same ratio between each screens (+ rounding)
 		for i in (0,1):
-			npos[i] = int(float(npos[i] - scr[sidx][2 + i]) / scr[sidx][i] * nscr[i]) + nscr[2 + i]
-			nsiz[i] = nsiz[i] * nscr[i] / scr[sidx][i]
+			npos[i] = int(float(npos[i] - scr[sidx][2 + i]) / scr[sidx][i] * nscr[i] + .5) + nscr[2 + i]
+			nsiz[i] = int(1.0 * nsiz[i] * nscr[i] / scr[sidx][i] +.5)
 	else:
 		# ... or translate window by applying offset on x (left/right), y (up/down), or both (next/prev)
 		for xy in [[0], [1], [0,1]][int(dir_str.index(dir)/2)]:
