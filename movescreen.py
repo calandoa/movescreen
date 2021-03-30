@@ -27,7 +27,6 @@ if ratio and dir == "fit":
 
 list_id = []
 for arg in sys.argv[2:] or 'a':
-	print arg
 	if arg in ['m', 'mouse']:
 		list_id += ['mouse']
 	elif arg in ['a', 'active']:
