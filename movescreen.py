@@ -16,7 +16,7 @@ if 1 < len(sys.argv) and sys.argv[1] == '-r':
 	ratio = True
 	del sys.argv[1]
 
-dir_str = [ "left", "right", "up", "down", "next", "prev", "fit" ]
+dir_str = [ "left", "right", "up", "down", "next", "prev", "fit", "max", "unmax" ]
 if len(sys.argv) < 2 or sys.argv[1] not in dir_str:
 	print("usage: %s [-r] <%s> [active|a] [mouse|m] [win_id]" % (sys.argv[0], '|'.join(dir_str)))
 	exit(1)
@@ -80,7 +80,7 @@ for ia, sa in enumerate(scr):
 
 	r["next"][ia] = (ia + 1) % len(scr)
 	r["prev"][ia] = (ia - 1) % len(scr)
-	r["fit"][ia] = ia
+	r["fit"][ia] = r["max"][ia] = r["unmax"][ia] = ia
 
 
 for id in list_id:
@@ -142,7 +142,7 @@ for id in list_id:
 		nsiz = [ min(nsiz[0], nscr[0] - 2*geo[4]), min(nsiz[1], nscr[1] - geo[4] - geo[5]) ]
 		npos[0] = min(max(npos[0], nscr[2]), nscr[2] + nscr[0] - nsiz[0] - geo[4] - geo[4])
 		npos[1] = min(max(npos[1], nscr[3]), nscr[3] + nscr[1] - nsiz[1] - geo[5] - geo[4])
-	else:
+	elif dir != 'max' and dir != 'unmax':
 		if ratio:
 			# ... or move/scale window by keeping same ratio between each screens (+ rounding)
 			for i in (0,1):
@@ -167,7 +167,12 @@ for id in list_id:
 				subprocess.call(cmd)
 
 		# wmctrl very pernickety with -b argument, 'add' not really working and 2 props max
-		wmctrl(id, [['-b', 'toggle,' + s] for s in state])
-		wmctrl(id, [['-e', '0,%d,%d,%d,%d' % tuple(npos+nsiz)]])
-		wmctrl(id, [['-b', 'toggle,' + s] for s in state])
+		if dir == 'max':
+			wmctrl(id, [['-b', 'add,maximized_vert,maximized_horz']])
+		elif dir == 'unmax':
+			wmctrl(id, [['-b', 'remove,maximized_vert,maximized_horz']])
+		else:
+			wmctrl(id, [['-b', 'toggle,' + s] for s in state])
+			wmctrl(id, [['-e', '0,%d,%d,%d,%d' % tuple(npos+nsiz)]])
+			wmctrl(id, [['-b', 'toggle,' + s] for s in state])
 
