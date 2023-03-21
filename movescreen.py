@@ -42,8 +42,8 @@ for arg in sys.argv[2:] or 'a':
 			exit(1)
 
 
-# Get screens information
-# =======================
+# Get screens information and order them
+# ======================================
 # scr will store a list of list: [ [ width height offset_x offset_y ] ... ]
 out = subprocess.check_output(['xrandr']).decode('ascii', 'ignore')
 reg = re.compile(" connected( primary)? ([0-9]+)x([0-9]+)\+([0-9]+)\+([0-9]+)")
@@ -53,35 +53,79 @@ for l in out.splitlines():
 	if m:
 		scr += [ list(map(int, m.groups()[1:])) ]
 
+# Returns the area ratio of the intersection between A and B, compared to A area
 def isect_area(a, b):
-	# Compute top left and bottom right coords in scr format: [w h x y]
+	# Get top left and bottom right coords in scr format: [w h x y]
 	tlx = max(a[2], b[2])
 	tly = max(a[3], b[3])
 	brx = min(a[2] + a[0], b[2] + b[0])
 	bry = min(a[3] + a[1], b[3] + b[1])
-	return max (0, brx - tlx) * max (0, bry - tly)
+	# Computes the intersection area and divides it by A area
+	return max (0, brx - tlx) * max (0, bry - tly) / a[0] / a[1]
 
-# r will hold a dict of how screens are disposed between themselves, using their idx
-# e.g. if scr 0 is at left of 1, then r[left][1] == 0 and r[right][0] == 1
+# r will hold a dict of how screens are disposed between themselves, using their idx.
+# e.g. if scr 0 is at left of 1, then r[left][1] == 0 and r[right][0] == 1. Remaining pos set to None.
 r = { a : [ None ] * len(scr) for a in dir_str  }
+
+# To determine such relative positions, the following algorithm is applied:
+#  - we "compare" all screens to each others with double nested iteration
+#  - for each comparision of A to B, we duplicate A on the left, right, up, down directions
+#  - the intersection area between each dup and B, relatively to A area, is computed
+#  - the max value will decide the best neighbor for A and B in every direction
+# A bit complicated, but this can manage unusal configurations
+
+# Dict of max area ratio between intersection and base screen
+rmx = { a : [ 0.0] * len(scr) for a in dir_str[0:4]  }
 
 for ia, sa in enumerate(scr):
 	for ib, sb in enumerate(scr):
 		if sa != sb:
-			# Duplicate screen on right then bottom, and check intersection
-			# Using the max of interection area would be better
-			if isect_area([sa[0], sa[1], sa[2] + sa[0], sa[3]], sb):
+			# Get the interseaction area ration between (left duplicate of A) and B
+			al_b = isect_area([sa[0], sa[1], sa[2] - sa[0], sa[3]], sb)
+			if rmx["left"][ia] < al_b:
+				r["left"][ia] = ib
+				rmx["left"][ia] = al_b
+			if rmx["right"][ib] < al_b:
+				r["right"][ib] = ia
+				rmx["right"][ib] = al_b
+
+			# same for right duplicate of A
+			ar_b = isect_area([sa[0], sa[1], sa[2] + sa[0], sa[3]], sb)
+			if rmx["right"][ia] < ar_b:
 				r["right"][ia] = ib
+				rmx["right"][ia] = ar_b
+			if rmx["left"][ib] < ar_b:
 				r["left"][ib] = ia
+				rmx["left"][ib] = ar_b
 
-			if isect_area([sa[0], sa[1], sa[2], sa[3] + sa[1]], sb):
+			# lower (down) duplicate of A
+			ad_b = isect_area([sa[0], sa[1], sa[2], sa[3] + sa[1]], sb)
+			if rmx["down"][ia] < ad_b:
 				r["down"][ia] = ib
+				rmx["down"][ia] = ad_b
+			if rmx["up"][ib] < ad_b:
 				r["up"][ib] = ia
+				rmx["up"][ib] = ad_b
 
-	r["next"][ia] = (ia + 1) % len(scr)
-	r["prev"][ia] = (ia - 1) % len(scr)
-	r["fit"][ia] = ia
+			# upper duplicate of A
+			au_b = isect_area([sa[0], sa[1], sa[2], sa[3] - sa[1]], sb)
+			if rmx["up"][ia] < au_b:
+				r["up"][ia] = ib
+				rmx["up"][ia] = au_b
+			if rmx["down"][ib] < au_b:
+				r["down"][ib] = ia
+				rmx["down"][ib] = au_b
 
+
+# Here we sort all screens linearly like (latin) writing to get "prev" and "next" orders
+# The order is given by scanning almost horizontally (y = x/8) the middle of each screen
+COEF_Y = 8
+lin_idx = sorted(range(0, len(scr)), key = lambda i: scr[i][2] + scr[i][0]/2 + COEF_Y*(scr[i][3] + scr[i][1]/2))
+
+for i, li in enumerate(lin_idx):
+	r["prev"][lin_idx[ (i - 1) % len(scr) ]] = li
+	r["next"][lin_idx[ (i + 1) % len(scr) ]] = li
+	r["fit"][i] = i
 
 for id in list_id:
 	# Get mouse/window info
