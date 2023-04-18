@@ -1,10 +1,13 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # This script is used to move windows accross monitors, if the window manager
 # does not provide any shortcut.
 #
 # Written by Antoine Calando / 2017 - Public domain
 
+import json
+from os.path import isfile
+from pathlib import Path
 import subprocess
 import re
 import sys
@@ -45,13 +48,18 @@ for arg in sys.argv[2:] or 'a':
 # Get screens information and order them
 # ======================================
 # scr will store a list of list: [ [ width height offset_x offset_y ] ... ]
-out = subprocess.check_output(['xrandr','--listactivemonitors']).decode('ascii', 'ignore')
-reg = re.compile("[0-9]+: \+(\*)?.+?([0-9]+)\/[0-9]+x([0-9]+)\/[0-9]+\+([0-9]+)\+([0-9]+)")
-scr = []
-for l in out.splitlines():
-	m = reg.search(l)
-	if m:
-		scr += [ list(map(int, m.groups()[1:])) ]
+cachename = Path.home() / ".cache" / "movescreen"
+if cachename.is_file():
+	scr = json.loads(cachename.read_text())
+else:
+	out = subprocess.check_output(['xrandr','--listactivemonitors']).decode('ascii', 'ignore')
+	reg = re.compile("[0-9]+: \+(\*)?.+?([0-9]+)\/[0-9]+x([0-9]+)\/[0-9]+\+([0-9]+)\+([0-9]+)")
+	scr = []
+	for l in out.splitlines():
+		m = reg.search(l)
+		if m:
+			scr += [ list(map(int, m.groups()[1:])) ]
+	cachename.write_text(json.dumps(scr))
 
 # Returns the area ratio of the intersection between A and B, compared to A area
 def isect_area(a, b):
