@@ -59,7 +59,10 @@ else:
 		m = reg.search(l)
 		if m:
 			scr += [ list(map(int, m.groups()[1:])) ]
-	cachename.write_text(json.dumps(scr))
+	try:
+		cachename.write_text(json.dumps(scr))
+	except OSError as e:
+		print(f'Error: {e}', file=sys.stderr)
 
 # Returns the area ratio of the intersection between A and B, compared to A area
 def isect_area(a, b):
